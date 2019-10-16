@@ -1654,33 +1654,15 @@ MavlinkReceiver::handle_message_play_tune(mavlink_message_t *msg)
 	if ((mavlink_system.sysid == play_tune.target_system || play_tune.target_system == 0) &&
 	    (mavlink_system.compid == play_tune.target_component || play_tune.target_component == 0)) {
 
-		Tunes tunes;
-
-		tune_control_s tune_control {};
-		tune_control.tune_id = 0;
-		tune_control.volume = tune_control_s::VOLUME_LEVEL_DEFAULT;
-
-		// Let's make sure the input is 0 terminated and we don't ever overrun it.
-		play_tune.tune2[sizeof(play_tune.tune2) - 1] = '\0';
-
-		tunes.set_string(play_tune.tune, tune_control.volume);
-
-		unsigned frequency;
-		unsigned duration;
-		unsigned silence;
-		uint8_t volume;
-
-		while (tunes.get_next_note(frequency, duration, silence, volume) > 0) {
-			tune_control.tune_id = 0;
-			tune_control.frequency = (uint16_t)frequency;
-			tune_control.duration = (uint32_t)duration;
-			tune_control.silence = (uint32_t)silence;
-			tune_control.volume = (uint8_t)volume;
+		// Normal tunes start with 'M'. If not, assume a tune_id in first byte.
+		char *tune = play_tune.tune;
+		if (*tune != 'M' && *tune != 0)
+		{
+			tune_control_s tune_control {};
 			tune_control.timestamp = hrt_absolute_time();
+			tune_control.tune_id = (uint8_t) *tune;
+			tune_control.volume = tune_control_s::VOLUME_LEVEL_DEFAULT;
 			_tune_control_pub.publish(tune_control);
-
-			// FIXME: this blocks this receiver thread
-			px4_usleep(duration + silence);
 		}
 	}
 }
